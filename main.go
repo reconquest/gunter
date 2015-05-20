@@ -9,8 +9,9 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/BurntSushi/toml"
 	"github.com/docopt/docopt-go"
-	"github.com/kovetskiy/scut"
+	"github.com/zazab/zhash"
 )
 
 const usage = `Gunter 1.0,
@@ -22,11 +23,11 @@ Usage:
 Options:
     -c <config>  Use specified config file.
                  [default: /etc/gunter/config]
-	-t <tpl>     Set specified template directory.
+    -t <tpl>     Set specified template directory.
                  [default: /etc/gunter/templates/]
     -d <dir>     Set specified directory as destination.
-	             [default: /]
-	-r           Generate temporary directory, print location and use it as
+                 [default: /]
+    -r           Generate temporary directory, print location and use it as
                  destination directory.
 `
 
@@ -40,7 +41,7 @@ func main() {
 		dryRun         = args["-r"].(bool)
 	)
 
-	config, err := scut.NewConfig(configFile)
+	config, err := getConfig(configFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -186,4 +187,14 @@ func applyTemplatePermissions(path string, template templateItem) error {
 	err = os.Chmod(path, template.Mode())
 
 	return err
+}
+
+func getConfig(path string) (zhash.Hash, error) {
+	configData := map[string]interface{}{}
+	_, err := toml.DecodeFile(path, &configData)
+	if err != nil {
+		return zhash.Hash{}, err
+	}
+
+	return zhash.HashFromMap(configData), nil
 }
