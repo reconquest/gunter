@@ -20,8 +20,8 @@ Gunter compiles templates using the config file and move generated
 directories/files to the destination folder with the same names.
 
 Usage:
-    gunter [-c <config>] [-t <tpl>] [-d <dir>]
-    gunter [-c <config>] [-t <tpl>] -r
+    gunter [-t <tpl>] [-c <config>] [-d <dir>]
+    gunter [-t <tpl>] [-c <config>] -r
 
 Options:
     -c <config>  Use specified config file.
