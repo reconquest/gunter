@@ -16,6 +16,9 @@ import (
 
 const usage = `Gunter 1.0,
 
+Gunter compiles templates using the config file and move generated
+directories/files to the destination folder with the same names.
+
 Usage:
     gunter [-c <config>] [-t <tpl>] [-d <dir>]
     gunter [-c <config>] [-t <tpl>] -r
@@ -57,7 +60,10 @@ func main() {
 			log.Fatal(err)
 		}
 
-		log.Printf("temporary directory: %s\n", destinationDir)
+		log.Printf(
+			"configuration files are saved into temporary directory %s\n",
+			destinationDir,
+		)
 	}
 
 	err = compileTemplates(templates, destinationDir, config.GetRoot())
@@ -104,6 +110,7 @@ func compileTemplates(
 			destinationDir+template.RelativePath(),
 			template,
 		)
+
 		if err != nil {
 			return err
 		}
