@@ -59,16 +59,18 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		log.Printf(
-			"configuration files are saved into temporary directory %s\n",
-			destinationDir,
-		)
 	}
 
 	err = compileTemplates(templates, destinationDir, config.GetRoot())
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if dryRun {
+		log.Printf(
+			"configuration files are saved into temporary directory %s\n",
+			destinationDir,
+		)
 	}
 }
 

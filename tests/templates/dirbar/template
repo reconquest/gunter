@@ -1,0 +1,7 @@
+config data
+{{ .Foo.StringData }}
+another config data
+{{ range $element := .Bar.ArrayData }}
+    {{ $element }}
+{{ end }}
+yet another config data
