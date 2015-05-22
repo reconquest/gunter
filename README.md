@@ -1,15 +1,15 @@
 # Gunter
 
-Gunter it is configuration system which created with KISS principle. (Keep It
-Short and Simple)
+Gunter is a configuration system which is created with KISS (Keep It
+Short and Simple) principle in mind.
 
 Gunter takes a files and directories from the templates directory, takes a
-configuration data from the configuration file written with the TOML language,
-creating directories with the same names, compiling template files via *Go
-template engine*, and puts that all to destination directory.
+configuration data from the configuration file written in TOML language,
+and then create directories with the same names, renders template files via *Go
+template engine*, and puts result to destination directory.
 
-Of course, **gunter** saves file permissions including file owner uid/gid of
-copied files and directories.
+Of course, **gunter** will save file permissions including file owner uid/gid of
+the copied files and directories.
 
 ## Installation
 
@@ -17,7 +17,7 @@ There is
 [PKGBUILD](https://raw.githubusercontent.com/reconquest/gunter/pkgbuild/PKGBUILD)
 file for the *Arch Linux* users.
 
-On other distros **gunter** should be installed via `go get`:
+On other distros **gunter** can be installed via `go get`:
 
 ```
 go get github.com/reconquest/gunter
@@ -27,38 +27,41 @@ go get github.com/reconquest/gunter
 
 ### Options
 
-- `-t <tpl>` - Set specified templates directory (default:
-    `/etc/gunter/templates`).
+- `-t <tpl>` - Set source templates directory (default:
+    `/var/gunter/templates`).
 
-    All template files should has valid *Go template engine* syntax.
+    All template files should be written in *Go template engine* syntax.
     Read more about syntax:
     [http://golang.org/pkg/html/template/](http://golang.org/pkg/html/template/)
 
-- `-c <config>` - Set specified configuration file (default:
+- `-c <config>` - Set source file with configuration data (default:
     `/etc/gunter/config`).
 
-    The contents of the configuraion file, which must be written with TOML
-    language, will be passed to every template file.
+    The contents of the configuraion file, which must be written in TOML
+    language, will be used to render every template file.
 
-- `-d <dir>` - Use specified directory path as destination. (default: `/`)
+- `-d <dir>` - Set destination directory, where rendered template files and
+    directories will be saved. (default: `/`)
 
     After running **gunter**, resulting files and directories will be copied
     to destination directory with the same paths.
 
-- `-r` - "Dry Run" mode. In this mode, **gunter** creates the temporary
-    directory, print location, and use it as destination directory. Very useful
-    for debugging time.
+- `-r` - "Dry Run" mode. In this mode, **gunter** will create the temporary
+    directory, print location, use it as destination directory and will not
+    overwrite any system files.
 
-### Arbitary example
+    Very useful for debugging time.
 
-For example, needs to configure services `foo` and `bar` which configuration
-files are located in `/etc/foo/main.conf` and `/etc/bar.conf`.
+### Arbitrary example
+
+For example, there are two services `foo` and `bar`, that requires
+configuration files, which are located in `/etc/foo/main.conf` and
+`/etc/bar.conf`.
 
 So should create template files with the same paths in template directory, for
-template directory, will be used `/etc/templates/`.
+template directory, will be used `/var/templates/`.
 
-Create template `/etc/templates/etc/foo/main.conf` with some contents
-like as following:
+Service `foo` should be configured like this:
 ```
 some_persistent_option = 1
 host = {{ .Foo.Host }}
@@ -66,7 +69,7 @@ port = {{ .Foo.Port }}
 another_persistent_option = 1
 ```
 
-And `/etc/bar.conf`:
+And service `bar` like this:
 ```
 SomeUpstream {
     {{ range $ip := .Bar.Addresses }}
@@ -88,19 +91,20 @@ Port = 80
 Addresses = [ "node0.ba.r", "node1.ba.r", "node2.ba.r" ]
 ```
 
-For debugging run **gunter** with all that options in "Dry Run" mode:
+Run **gunter** "Dry Run" mode passing `-r` flag.
 ```
 gunter -t /etc/templates/ -c /etc/superconf -r`
 ```
 
-After running will be printed message:
+After running **gunter** will print directory where all rendered files and
+directories are stored:
 ```
 2015/05/22 09:35:30 configuration files are saved into temporary directory
 /tmp/gunter281738087/
 ```
 
-So, structure of `/tmp/gunter281738087/` will be same as `/etc/templates/` with
-all file permissions (including file owner uid/gid):
+So, structure of `/tmp/gunter281738087/` will be the same as `/etc/templates/`
+with all file permissions (including file owner uid/gid):
 
 ```
 /tmp/gunter281738087
@@ -133,11 +137,12 @@ SomeUpstream {
 }
 ```
 
-Everything is okay, now **gunter** may run in "normal" mode and install all
-configs to root system directory.
+If result configuration files are ok, **gunter** can be invoked in "normal"
+mode and install all configurations to root system directory.
 ```
 gunter -t /etc/templates/ -c /etc/superconf
 ```
 
-After this step, all configuration files are directory will be copied to
-destination directory.
+After that, all configuration files are directory will be copied to
+destination directory and services `foo` and `bar` can start using compiled
+configuration data.
