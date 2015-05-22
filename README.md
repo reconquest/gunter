@@ -30,10 +30,6 @@ go get github.com/reconquest/gunter
 - `-t <tpl>` - Set source templates directory (default:
     `/var/gunter/templates`).
 
-    All template files should be written in *Go template engine* syntax.
-    Read more about syntax:
-    [http://golang.org/pkg/html/template/](http://golang.org/pkg/html/template/)
-
 - `-c <config>` - Set source file with configuration data (default:
     `/etc/gunter/config`).
 
@@ -51,6 +47,51 @@ go get github.com/reconquest/gunter
     overwrite any system files.
 
     Very useful for debugging time.
+
+### Templates
+
+All template files should be written in *Go template engine* syntax.
+Read more about syntax:
+[http://golang.org/pkg/html/template/](http://golang.org/pkg/html/template/)
+
+#### Tip
+
+Go template engine do not have nice way to suppress new lines before
+tags like `{{ end }}`
+([github issue](https://github.com/golang/go/issues/9969)).
+And template like this:
+```
+{{ range $item := .Data.Items }}
+	{{ $item }}
+{{ end }}
+}
+```
+
+Will be rendered to:
+```
+	item1
+
+	item2
+
+	item3
+```
+
+And it is not ok, **gunter** can fix this trouble using
+`{{ - end }}` tag instead of `{{ end }}`, and template like this:
+```
+{{ range $item := .Data.Items }}
+	{{ $item }}
+{{ - end }}
+}
+```
+*dash symbol prepended before 'end'*
+
+Will be rendered to:
+```
+	item1
+	item2
+	item3
+```
 
 ### Arbitrary example
 
@@ -71,11 +112,10 @@ another_persistent_option = 1
 
 And service `bar` like this:
 ```
-SomeUpstream {
-    {{ range $ip := .Bar.Addresses }}
+BarUpstream: [ {{ range $ip := .Bar.Addresses }}
         {{ $ip }}
-    {{ end }}
-}
+    {{ - end }}
+]
 ```
 
 As configuration file will be used `/etc/superconf`, create it with contents
@@ -126,15 +166,11 @@ another_persistent_option = 1
 
 and `/tmp/gunter281738087/etc/bar.conf`:
 ```
-SomeUpstream {
-
+BarUpstream: [
         node0.ba.r
-
         node1.ba.r
-
         node2.ba.r
-
-}
+]
 ```
 
 If result configuration files are ok, **gunter** can be invoked in "normal"

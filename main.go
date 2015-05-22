@@ -157,7 +157,14 @@ func compileTemplateFile(
 	destinationDir string,
 	config map[string]interface{},
 ) error {
-	tpl, err := libtemplate.ParseFiles(template.FullPath())
+	templateContents, err := ioutil.ReadFile(template.FullPath())
+	if err != nil {
+		return err
+	}
+
+	tpl, err := libtemplate.New(template.RelativePath()).Parse(
+		tplStripWhitespaces(string(templateContents)),
+	)
 	if err != nil {
 		return err
 	}

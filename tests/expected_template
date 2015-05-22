@@ -1,15 +1,9 @@
 config data
 foo string data
-another config data
-
+List: 
     100
-
     200
-
     300
-
     400
-
     500
-
 yet another config data
