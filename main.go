@@ -16,22 +16,30 @@ import (
 
 const usage = `Gunter 1.0,
 
-Gunter compiles templates using the config file and move generated
-directories/files to the destination folder with the same names.
+Gunter is a configuration system which is created with KISS (Keep It Short and
+Simple) principle in mind.
+
+Gunter takes a files and directories from the templates directory, takes a
+configuration data from the configuration file written in TOML language, and
+then create directories with the same names, renders template files via Go
+template engine, and puts result to destination directory.
+
+Of course, gunter will save file permissions including file owner uid/gid of
+the copied files and directories.
 
 Usage:
     gunter [-t <tpl>] [-c <config>] [-d <dir>]
     gunter [-t <tpl>] [-c <config>] -r
 
 Options:
-    -c <config>  Use specified config file.
+    -t <tpl>     Set source templates directory.
+                 [default: /var/gunter/templates/]
+    -c <config>  Set source file with configuration data.
                  [default: /etc/gunter/config]
-    -t <tpl>     Set specified template directory.
-                 [default: /etc/gunter/templates/]
-    -d <dir>     Set specified directory as destination.
-                 [default: /]
-    -r           Generate temporary directory, print location and use it as
-                 destination directory.
+    -d <dir>     Set destination directory, where rendered template files and
+                 directories will be saved.  [default: /]
+    -r           "Dry Run" mode. Gunter will create the temporary directory,
+                 print location and use it as destination directory.
 `
 
 func main() {
@@ -100,7 +108,8 @@ func compileTemplates(
 
 		default:
 			err = fmt.Errorf(
-				"file '%s' has unsupported file type", template.RelativePath(),
+				"file '%s' has unsupported file type",
+				template.RelativePath(),
 			)
 		}
 
