@@ -93,7 +93,7 @@ Addresses = [ "node0.ba.r", "node1.ba.r", "node2.ba.r" ]
 
 Run **gunter** "Dry Run" mode passing `-r` flag.
 ```
-gunter -t /etc/templates/ -c /etc/superconf -r`
+gunter -t /var/templates/ -c /etc/superconf -r`
 ```
 
 After running **gunter** will print directory where all rendered files and
@@ -103,7 +103,7 @@ directories are stored:
 /tmp/gunter281738087/
 ```
 
-So, structure of `/tmp/gunter281738087/` will be the same as `/etc/templates/`
+So, structure of `/tmp/gunter281738087/` will be the same as `/var/templates/`
 with all file permissions (including file owner uid/gid):
 
 ```
@@ -140,7 +140,7 @@ SomeUpstream {
 If result configuration files are ok, **gunter** can be invoked in "normal"
 mode and install all configurations to root system directory.
 ```
-gunter -t /etc/templates/ -c /etc/superconf
+gunter -t /var/templates/ -c /etc/superconf
 ```
 
 After that, all configuration files are directory will be copied to
