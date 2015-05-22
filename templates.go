@@ -7,9 +7,9 @@ import (
 )
 
 type templateStorage struct {
-	dir    string
-	files  []templateItem
-	walked bool
+	dir         string
+	files       []templateItem
+	initialized bool
 }
 
 type templateItem struct {
@@ -28,12 +28,13 @@ func NewTemplateStorage(templatesDir string) (*templateStorage, error) {
 }
 
 func (storage *templateStorage) GetItems() ([]templateItem, error) {
-	if !storage.walked {
+	if !storage.initialized {
 		err := filepath.Walk(storage.dir, storage.walkDir)
 		if err != nil {
 			return []templateItem{}, err
 		}
-		storage.walked = true
+
+		storage.initialized = true
 	}
 
 	return storage.files, nil

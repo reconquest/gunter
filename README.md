@@ -1,6 +1,6 @@
 # Gunter
 
-Gunter is a configuration system which is created with KISS (Keep It
+Gunter is a configuration system which was created with KISS (Keep It
 Short and Simple) principle in mind.
 
 Gunter takes a files and directories from the templates directory, takes a
