@@ -171,7 +171,7 @@ func compileTemplateFile(
 
 	compiledFile, err := os.OpenFile(
 		destinationDir+template.RelativePath(),
-		os.O_CREATE|os.O_WRONLY,
+		os.O_CREATE|os.O_TRUNC|os.O_WRONLY,
 		template.Mode(),
 	)
 	if err != nil {
