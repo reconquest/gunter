@@ -3,10 +3,13 @@
 Gunter is a configuration system which was created with KISS (Keep It
 Short and Simple) principle in mind.
 
-Gunter takes a files and directories from the templates directory, takes a
-configuration data from the configuration file written in TOML language,
-and then create directories with the same names, renders template files via *Go
-template engine*, and puts result to destination directory.
+Gunter takes a files and directories from the templates directory,
+takes a configuration data from the configuration file written in TOML language,
+and then create directories with the same names (without `.template` suffix, if
+exists), renders `*.template` files via *Go template engine*,
+and puts result to destination directory.
+
+Non-template files and directories will by just copied to destination directory.
 
 Of course, **gunter** will save file permissions including file owner uid/gid of
 the copied files and directories.
@@ -50,7 +53,9 @@ go get github.com/reconquest/gunter
 
 ### Templates
 
-All template files should be written in *Go template engine* syntax.
+All template files should be written in *Go template engine* syntax and have
+the `.template` suffix in name.
+
 Read more about syntax:
 [http://golang.org/pkg/html/template/](http://golang.org/pkg/html/template/)
 
@@ -99,8 +104,9 @@ For example, there are two services `foo` and `bar`, that requires
 configuration files, which are located in `/etc/foo/main.conf` and
 `/etc/bar.conf`.
 
-So should create template files with the same paths in template directory, for
-template directory, will be used `/var/templates/`.
+So should create template files with filename suffix `.template` in template
+directory, for template directory, will be used `/var/templates/`. In this case
+it should `/etc/foo/main.conf.template` and `/etc/bar.conf.template`.
 
 Service `foo` should be configured like this:
 ```

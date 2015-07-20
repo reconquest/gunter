@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	libtemplate "html/template"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -46,10 +48,10 @@ func main() {
 	args, _ := docopt.Parse(usage, nil, true, "1.0", false)
 
 	var (
-		configFile     = args["-c"].(string)
-		templatesDir   = args["-t"].(string)
-		destinationDir = args["-d"].(string)
-		dryRun         = args["-r"].(bool)
+		configFile   = args["-c"].(string)
+		templatesDir = args["-t"].(string)
+		destDir      = args["-d"].(string)
+		dryRun       = args["-r"].(bool)
 	)
 
 	config, err := getConfig(configFile)
@@ -63,13 +65,13 @@ func main() {
 	}
 
 	if dryRun {
-		destinationDir, err = getTempDir()
+		destDir, err = getTempDir()
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	err = compileTemplates(templates, destinationDir, config.GetRoot())
+	err = compileTemplates(templates, destDir, config.GetRoot())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -77,7 +79,7 @@ func main() {
 	if dryRun {
 		log.Printf(
 			"configuration files are saved into temporary directory %s\n",
-			destinationDir,
+			destDir,
 		)
 	}
 }
@@ -92,19 +94,21 @@ func getTemplates(templatesDir string) ([]templateItem, error) {
 }
 
 func compileTemplates(
-	templates []templateItem,
-	destinationDir string,
-	config map[string]interface{},
+	templates []templateItem, destDir string, config map[string]interface{},
 ) (err error) {
-	destinationDir = strings.TrimRight(destinationDir, "/") + "/"
+	destDir = strings.TrimRight(destDir, "/") + "/"
 
 	for _, template := range templates {
 		switch {
 		case template.Mode().IsRegular():
-			err = compileTemplateFile(template, destinationDir, config)
+			if strings.HasSuffix(template.Name(), ".template") {
+				err = compileTemplateFile(template, destDir, config)
+			} else {
+				err = copyFile(template, destDir)
+			}
 
 		case template.Mode()&os.ModeDir == os.ModeDir:
-			err = compileTemplateDir(template, destinationDir)
+			err = compileTemplateDir(template, destDir)
 
 		default:
 			err = fmt.Errorf(
@@ -116,46 +120,27 @@ func compileTemplates(
 		if err != nil {
 			return err
 		}
-
-		err = applyTemplatePermissions(
-			destinationDir+template.RelativePath(),
-			template,
-		)
-
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
 }
 
-func compileTemplateDir(
-	template templateItem, destinationDir string,
-) error {
-	err := os.Mkdir(
-		destinationDir+template.RelativePath(), template.Mode(),
-	)
+func compileTemplateDir(template templateItem, destDir string) error {
+	dirPath := filepath.Join(destDir, template.RelativePath())
+	if strings.HasSuffix(dirPath, ".template") {
+		dirPath = strings.TrimSuffix(dirPath, ".template")
+	}
 
+	err := os.Mkdir(dirPath, template.Mode())
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	err = applyTemplatePermissions(
-		destinationDir+template.RelativePath(),
-		template,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return applyTemplatePermissions(dirPath, template)
 }
 
 func compileTemplateFile(
-	template templateItem,
-	destinationDir string,
-	config map[string]interface{},
+	template templateItem, destDir string, config map[string]interface{},
 ) error {
 	templateContents, err := ioutil.ReadFile(template.FullPath())
 	if err != nil {
@@ -169,10 +154,12 @@ func compileTemplateFile(
 		return err
 	}
 
+	filePath := filepath.Join(
+		destDir, strings.TrimSuffix(template.RelativePath(), ".template"),
+	)
+
 	compiledFile, err := os.OpenFile(
-		destinationDir+template.RelativePath(),
-		os.O_CREATE|os.O_TRUNC|os.O_WRONLY,
-		template.Mode(),
+		filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, template.Mode(),
 	)
 	if err != nil {
 		return err
@@ -185,7 +172,34 @@ func compileTemplateFile(
 		return err
 	}
 
-	return nil
+	return applyTemplatePermissions(filePath, template)
+}
+
+func copyFile(
+	template templateItem, destDir string,
+) error {
+	sourceFile, err := os.Open(template.FullPath())
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	filePath := filepath.Join(destDir, template.RelativePath())
+
+	destFile, err := os.OpenFile(
+		filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, template.Mode(),
+	)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	return applyTemplatePermissions(filePath, template)
 }
 
 func getTempDir() (string, error) {

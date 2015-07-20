@@ -2,7 +2,7 @@
 
 set -e -u
 
-go build
+#go build
 
 TESTS=$(mktemp -d)
 
@@ -17,8 +17,8 @@ rm $TESTS/templates/dirfoo/.gitignore
 chown daemon:daemon $TESTS/templates/dirfoo
 chmod u+s $TESTS/templates/dirfoo
 
-chown $(id -u):daemon $TESTS/templates/dirbar/template
-chmod +x $TESTS/templates/dirbar/template
+chown $(id -u):daemon $TESTS/templates/dirbar/bar.template
+chmod +x $TESTS/templates/dirbar/bar.template
 
 # running gunter in dry run mode
 DRYRUN=$(./gunter -c $TESTS/config -t $TESTS/templates -r 2>&1)
@@ -26,7 +26,7 @@ GUNTER_TEMP_DIR=$(awk '{print $10}' <<< "$DRYRUN")
 
 permissions() {
     DIR=$1
-    ls -lR $DIR | sed "s@$DIR@@" | awk '{print $1, $2, $3, $4, $9}'
+    ls -lR $DIR | sed "s@$DIR@@" | awk '{print $1, $2, $3, $4}'
 }
 
 PERMISSIONS_EXPECTED=$(permissions $TESTS/templates/)
@@ -42,10 +42,15 @@ if [ $? -eq 1 ]; then
     exit 1
 fi
 
-diff -u $TESTS/expected_template $GUNTER_TEMP_DIR/dirbar/template
+diff -u $TESTS/expected_template $GUNTER_TEMP_DIR/dirbar/bar
 if [ $? -eq 1 ]; then
     echo "template file compilation corrupted"
     exit 1
 fi
+
+set -e
+
+# check that '.git.template' copied as '.git'
+test -d $GUNTER_TEMP_DIR/.git
 
 echo "tests passed"
