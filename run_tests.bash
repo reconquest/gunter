@@ -2,7 +2,7 @@
 
 set -e -u
 
-#go build
+go build
 
 TESTS=$(mktemp -d)
 
