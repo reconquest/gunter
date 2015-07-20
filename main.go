@@ -107,7 +107,7 @@ func compileTemplates(
 				err = copyFile(template, destDir)
 			}
 
-		case template.Mode()&os.ModeDir == os.ModeDir:
+		case template.Mode().IsDir():
 			err = compileTemplateDir(template, destDir)
 
 		default:
