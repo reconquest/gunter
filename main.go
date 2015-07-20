@@ -126,10 +126,9 @@ func compileTemplates(
 }
 
 func compileTemplateDir(template templateItem, destDir string) error {
-	dirPath := filepath.Join(destDir, template.RelativePath())
-	if strings.HasSuffix(dirPath, ".template") {
-		dirPath = strings.TrimSuffix(dirPath, ".template")
-	}
+	dirPath := filepath.Join(
+		destDir, strings.TrimSuffix(template.RelativePath(), ".template"),
+	)
 
 	err := os.Mkdir(dirPath, template.Mode())
 	if err != nil && !os.IsExist(err) {
