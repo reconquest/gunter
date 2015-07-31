@@ -74,10 +74,18 @@ func (storage *templateStorage) add(
 }
 
 // methods named by analogue with os.FileInfo Name()/Size()/Mode()
-func (item templateItem) RelativePath() string {
+func (item *templateItem) RelativePath() string {
 	return item.relativePath
 }
 
-func (item templateItem) FullPath() string {
+func (item *templateItem) FullPath() string {
 	return item.fullPath
+}
+
+func (item *templateItem) SetRelativePath(path string) {
+	item.relativePath = path
+}
+
+func (item *templateItem) SetFullPath(path string) {
+	item.fullPath = path
 }

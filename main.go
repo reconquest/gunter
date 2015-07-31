@@ -101,13 +101,19 @@ func compileTemplates(
 	for _, template := range templates {
 		switch {
 		case template.Mode().IsRegular():
-			if strings.HasSuffix(template.Name(), ".template") {
+			if strings.HasSuffix(template.RelativePath(), ".template") {
 				err = compileTemplateFile(template, destDir, config)
 			} else {
 				err = copyFile(template, destDir)
 			}
 
 		case template.Mode().IsDir():
+			if strings.HasSuffix(template.RelativePath(), ".template") {
+				template, templates = removeDotTemplateDirectorySuffix(
+					template, templates,
+				)
+			}
+
 			err = compileTemplateDir(template, destDir)
 
 		default:
@@ -125,11 +131,31 @@ func compileTemplates(
 	return nil
 }
 
-func compileTemplateDir(template templateItem, destDir string) error {
-	dirPath := filepath.Join(
-		destDir, strings.TrimSuffix(template.RelativePath(), ".template"),
-	)
+func removeDotTemplateDirectorySuffix(
+	target templateItem, templates []templateItem,
+) (templateItem, []templateItem) {
+	newRelativePath := strings.TrimSuffix(target.RelativePath(), ".template")
 
+	for index, template := range templates {
+		if strings.HasPrefix(template.RelativePath(), target.RelativePath()) {
+			template.SetRelativePath(
+				newRelativePath + strings.TrimPrefix(
+					template.RelativePath(),
+					target.RelativePath(),
+				),
+			)
+
+			templates[index] = template
+		}
+	}
+
+	target.SetRelativePath(newRelativePath)
+
+	return target, templates
+}
+
+func compileTemplateDir(template templateItem, destDir string) error {
+	dirPath := filepath.Join(destDir, template.RelativePath())
 	err := os.Mkdir(dirPath, template.Mode())
 	if err != nil && !os.IsExist(err) {
 		return err

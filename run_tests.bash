@@ -20,8 +20,17 @@ chmod u+s $TESTS/templates/dirfoo
 chown $(id -u):daemon $TESTS/templates/dirbar/bar.template
 chmod +x $TESTS/templates/dirbar/bar.template
 
+chown $(id -u):daemon $TESTS/templates/.git.template/file_in_dot_git
+chmod +x $TESTS/templates/.git.template/file_in_dot_git
+
 # running gunter in dry run mode
 DRYRUN=$(./gunter -c $TESTS/config -t $TESTS/templates -r 2>&1)
+if [ $? -ne 0 ]; then
+    echo "gunter running failed"
+    echo "$DRYRUN"
+    exit 1
+fi
+
 GUNTER_TEMP_DIR=$(awk '{print $10}' <<< "$DRYRUN")
 
 permissions() {
