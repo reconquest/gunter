@@ -69,7 +69,6 @@ And template like this:
 {{ range $item := .Data.Items }}
 	{{ $item }}
 {{ end }}
-}
 ```
 
 Will be rendered to:
@@ -87,7 +86,6 @@ And it is not ok, **gunter** can fix this trouble using
 {{ range $item := .Data.Items }}
 	{{ $item }}
 {{ - end }}
-}
 ```
 *dash symbol prepended before 'end'*
 
