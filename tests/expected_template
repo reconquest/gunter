@@ -1,5 +1,5 @@
 config data
-foo string data
+foo string data special & chars # + = $
 List: 
     100
     200

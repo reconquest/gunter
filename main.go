@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	libtemplate "html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -10,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	libtemplate "text/template"
 
 	"github.com/BurntSushi/toml"
 	"github.com/docopt/docopt-go"
