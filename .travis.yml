@@ -1,3 +1,0 @@
-sudo: true
-script:
-    - sudo ./run_tests.bash
