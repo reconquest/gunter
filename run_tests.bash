@@ -1,10 +1,14 @@
 #!/bin/bash
 
-set -e -u
+set -u
 
 go build
+if [ $? -ne 0 ]; then
+    echo "can't build project"
+    exit 1
+fi
 
-TESTS=$(mktemp -d)
+TESTS=$(mktemp -d --suffix=".gunter.tests")
 
 cp -r tests/* $TESTS
 
@@ -24,14 +28,14 @@ chown $(id -u):daemon $TESTS/templates/.git.template/file_in_dot_git
 chmod +x $TESTS/templates/.git.template/file_in_dot_git
 
 # running gunter in dry run mode
-DRYRUN=$(./gunter -c $TESTS/config -t $TESTS/templates -r 2>&1)
+GUNTER_LOG=$(./gunter -c $TESTS/config -t $TESTS/templates -r 2>&1)
 if [ $? -ne 0 ]; then
     echo "gunter running failed"
-    echo "$DRYRUN"
+    echo "$GUNTER_LOG"
     exit 1
 fi
 
-GUNTER_TEMP_DIR=$(awk '{print $10}' <<< "$DRYRUN")
+GUNTER_TEMP_DIR=$(awk '{print $10}' <<< "$GUNTER_LOG")
 
 permissions() {
     DIR=$1
@@ -41,25 +45,71 @@ permissions() {
 PERMISSIONS_EXPECTED=$(permissions $TESTS/templates/)
 PERMISSIONS_ACTUAL=$(permissions $GUNTER_TEMP_DIR)
 
-# -e flag should be restored because diff exits with status 1 if files are
-# different.
-set +e
-
 diff -u <(echo "$PERMISSIONS_EXPECTED") <(echo "$PERMISSIONS_ACTUAL")
-if [ $? -eq 1 ]; then
+if [ $? -ne 0 ]; then
     echo "permissions and ownership copy error"
     exit 1
 fi
 
 diff -u $TESTS/expected_template $GUNTER_TEMP_DIR/dirbar/bar
-if [ $? -eq 1 ]; then
+if [ $? -ne 0 ]; then
     echo "template file compilation corrupted"
     exit 1
 fi
 
-set -e
-
 # check that '.git.template' copied as '.git'
 test -d $GUNTER_TEMP_DIR/.git
+if [ $? -ne 0 ]; then
+    echo ".git directory not copied"
+    exit 1
+fi
+
+test ! -d $GUNTER_TEMP_DIR/.git.template
+if [ $? -ne 0 ]; then
+    echo ".git.template directory copied with suffix .template"
+    exit 1
+fi
+
+# check backup
+DEST_DIR=$(mktemp -d --suffix=".gunter.dest")
+mkdir $DEST_DIR/dirbar
+echo -n 'backup me' > $DEST_DIR/dirbar/bar
+
+BACKUP_DIR=$(mktemp -d --suffix=".gunter.backup")
+
+GUNTER_LOG=$(
+    ./gunter \
+        -c $TESTS/config -t $TESTS/templates \
+        -d $DEST_DIR -b $BACKUP_DIR 2>&1
+)
+if [ $? -ne 0 ]; then
+    echo "gunter running failed"
+    echo "$GUNTER_LOG"
+    exit 1
+fi
+
+test -f $BACKUP_DIR/dirbar/bar
+if [ $? -ne 0 ]; then
+    echo "dirbar/bar file not backuped"
+    exit 1
+fi
+
+test ! -d $BACKUP_DIR/dirfoo
+if [ $? -ne 0 ]; then
+    echo "dirfoo directory should not be copied"
+    exit 1
+fi
+
+test ! -d $BACKUP_DIR/.git
+if [ $? -ne 0 ]; then
+    echo ".git directory should not be copied"
+    exit 1
+fi
+
+diff -u <(echo -n "backup me") $BACKUP_DIR/dirbar/bar
+if [ $? -ne 0 ]; then
+    echo "backuping failed"
+    exit 1
+fi
 
 echo "tests passed"
