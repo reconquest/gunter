@@ -59,6 +59,9 @@ the `.template` suffix in name.
 Read more about syntax:
 [http://golang.org/pkg/html/template/](http://golang.org/pkg/html/template/)
 
+If template file uses variables, which does not present in configuration
+file, gunter will exit with 1.
+
 #### Tip
 
 Go template engine do not have nice way to suppress new lines before
