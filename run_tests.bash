@@ -35,7 +35,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-GUNTER_TEMP_DIR=$(awk '{print $10}' <<< "$GUNTER_LOG")
+GUNTER_TEMP_DIR=$(awk '{print $8}' <<< "$GUNTER_LOG")
 
 permissions() {
     DIR=$1
@@ -51,7 +51,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-diff -u $TESTS/expected_template $GUNTER_TEMP_DIR/dirbar/bar
+diff -u $TESTS/expected_bar_template $GUNTER_TEMP_DIR/dirbar/bar
 if [ $? -ne 0 ]; then
     echo "template file compilation corrupted"
     exit 1
@@ -111,5 +111,26 @@ if [ $? -ne 0 ]; then
     echo "backuping failed"
     exit 1
 fi
+
+rm -rf $BACKUP_DIR $DEST_DIR
+mkdir -p $DEST_DIR
+
+GUNTER_LOG=$(
+    ./gunter \
+        -c $TESTS/config -t $TESTS/broken_templates \
+        -d $DEST_DIR -b $BACKUP_DIR 2>&1
+)
+if [ $? -eq 0 ]; then
+    echo "gunter doesn't fail when works with broken templates"
+    exit 1
+fi
+
+grep -q "UnknownConfigField" <<< "$GUNTER_LOG"
+if [ $? -ne 0 ]; then
+    echo "gunter stderr doesn't contains message about UnknownConfigField"
+    exit 1
+fi
+
+rm -rf $BACKUP_DIR $DEST_DIR
 
 echo "tests passed"

@@ -35,15 +35,15 @@ Usage:
 
 Options:
     -t <tpl>     Set source templates directory.
-                 [default: /var/gunter/templates/]
+                     [default: /var/gunter/templates/]
     -c <config>  Set source file with configuration data.
-                 [default: /etc/gunter/config]
+                     [default: /etc/gunter/config]
     -d <dir>     Set destination directory, where rendered template files
-                 and directories will be saved.  [default: /]
+                     and directories will be saved.  [default: /]
     -b <dir>     Set backup directory for storing files, which
-                 will be overwriten.
+                     will be overwriten.
     -r           "Dry Run" mode. Gunter will create the temporary directory,
-                 print location and use it as destination directory.
+                     print location and use it as destination directory.
 `
 
 func main() {
@@ -83,7 +83,7 @@ func main() {
 	}
 
 	if dryRun {
-		log.Printf(
+		fmt.Printf(
 			"configuration files are saved into temporary directory %s\n",
 			destDir,
 		)
@@ -102,7 +102,9 @@ func getTemplates(templatesDir string) ([]templateItem, error) {
 func compileTemplates(
 	templates []templateItem,
 	config map[string]interface{},
-	destDir string, backupDir string, shouldBackup bool,
+	destDir string,
+	backupDir string,
+	shouldBackup bool,
 ) (err error) {
 	for _, template := range templates {
 		switch {
@@ -204,6 +206,9 @@ func compileTemplateFile(
 	}
 
 	defer compiledFile.Close()
+
+	// strict mode
+	tpl.Option("missingkey=error")
 
 	err = tpl.Execute(compiledFile, config)
 	if err != nil {
