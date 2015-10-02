@@ -16,7 +16,7 @@ import (
 	"github.com/zazab/zhash"
 )
 
-const usage = `Gunter 1.0,
+const usage = `Gunter 1.3,
 
 Gunter is a configuration system which is created with KISS (Keep It Short and
 Simple) principle in mind.
@@ -47,7 +47,7 @@ Options:
 `
 
 func main() {
-	args, _ := docopt.Parse(usage, nil, true, "1.0", false)
+	args, _ := docopt.Parse(usage, nil, true, "1.3", false)
 
 	var (
 		configFile   = args["-c"].(string)
