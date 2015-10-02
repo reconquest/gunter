@@ -1,43 +1,53 @@
 pkgname=gunter
-pkgver=1.2e45266
+pkgver=20151002.1_cc9e007
 pkgrel=1
 pkgdesc="simple configuration system"
-url="https://github.com/reconquest/gunter"
 arch=('i686' 'x86_64')
 license=('GPL')
-makedepends=('go')
+makedepends=('go' 'git')
 
-source=("git://github.com/reconquest/gunter.git")
-md5sums=('SKIP')
-backup=()
+source=(
+	"gunter::git://github.com/reconquest/gunter.git"
+)
+
+md5sums=(
+	'SKIP'
+)
+
+backup=(
+)
 
 pkgver() {
-    cd "${pkgname}"
-    echo $(git rev-list --count master).$(git rev-parse --short master)
+	cd "$srcdir/$pkgname"
+	local date=$(git log -1 --format="%cd" --date=short | sed s/-//g)
+	local count=$(git rev-list --count HEAD)
+	local commit=$(git rev-parse --short HEAD)
+	echo "$date.${count}_$commit"
 }
 
 build() {
-    cd "$srcdir/$pkgname"
+	cd "$srcdir/$pkgname"
 
-    rm -rf "$srcdir/.go/src"
+	if [ -L "$srcdir/$pkgname" ]; then
+		rm "$srcdir/$pkgname" -rf
+		mv "$srcdir/.go/src/$pkgname/" "$srcdir/$pkgname"
+	fi
 
-    mkdir -p "$srcdir/.go/src"
+	rm -rf "$srcdir/.go/src"
 
-    export GOPATH=$srcdir/.go
+	mkdir -p "$srcdir/.go/src"
 
-    mv "$srcdir/$pkgname" "$srcdir/.go/src/"
+	export GOPATH="$srcdir/.go"
 
-    cd "$srcdir/.go/src/gunter/"
-    ln -sf "$srcdir/.go/src/gunter/" "$srcdir/$pkgname"
+	mv "$srcdir/$pkgname" "$srcdir/.go/src/"
 
-    go get
+	cd "$srcdir/.go/src/$pkgname/"
+	ln -sf "$srcdir/.go/src/$pkgname/" "$srcdir/$pkgname"
+
+	echo "Running 'go get'..."
+	go get
 }
 
 package() {
-    mkdir -p "$pkgdir/var/gunter/templates/"
-    mkdir -p "$pkgdir/etc/gunter/config"
-
-    mkdir -p "$pkgdir/usr/bin"
-
-    cp "$srcdir/.go/bin/$pkgname" "$pkgdir/usr/bin"
+	install -DT "$srcdir/.go/bin/$pkgname" "$pkgdir/usr/bin/$pkgname"
 }
