@@ -1,5 +1,7 @@
 # Gunter
 
+![gunter](https://cloud.githubusercontent.com/assets/8445924/10263600/b4c470e6-69e3-11e5-9084-930c70a8570f.png)
+
 Gunter is a configuration system which was created with KISS (Keep It
 Short and Simple) principle in mind.
 
