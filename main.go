@@ -68,15 +68,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if dryRun {
-		destDir, err = getTempDir()
-		if err != nil {
-			log.Fatal(err)
-		}
+	tempDir, err := getTempDir()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	err = compileTemplates(
-		templates, config.GetRoot(), destDir, backupDir, shouldBackup,
+		templates, config.GetRoot(), tempDir,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -85,8 +83,15 @@ func main() {
 	if dryRun {
 		fmt.Printf(
 			"configuration files are saved into temporary directory %s\n",
-			destDir,
+			tempDir,
 		)
+
+		os.Exit(0)
+	}
+
+	err = moveFiles(tempDir, destDir, backupDir, shouldBackup)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -103,19 +108,10 @@ func compileTemplates(
 	templates []templateItem,
 	config map[string]interface{},
 	destDir string,
-	backupDir string,
-	shouldBackup bool,
 ) (err error) {
 	for _, template := range templates {
 		switch {
 		case template.Mode().IsRegular():
-			if shouldBackup {
-				err = backupFile(template, destDir, backupDir)
-				if err != nil {
-					return err
-				}
-			}
-
 			if strings.HasSuffix(template.RelativePath(), ".template") {
 				err = compileTemplateFile(template, destDir, config)
 			} else {
@@ -256,30 +252,6 @@ func copyFile(sourcePath, destPath string, mode os.FileMode) error {
 	return destFile.Close()
 }
 
-func backupFile(
-	template templateItem, sourceDir string, backupDir string,
-) error {
-	sourcePath := filepath.Join(
-		sourceDir, strings.TrimSuffix(template.RelativePath(), ".template"),
-	)
-
-	backupPath := filepath.Join(
-		backupDir, strings.TrimSuffix(template.RelativePath(), ".template"),
-	)
-
-	_, err := os.Stat(sourcePath)
-	if os.IsNotExist(err) {
-		return nil
-	}
-
-	err = os.MkdirAll(filepath.Dir(backupPath), 0600)
-	if err != nil {
-		return err
-	}
-
-	return copyFile(sourcePath, backupPath, template.Mode())
-}
-
 func getTempDir() (string, error) {
 	tempDir, err := ioutil.TempDir(os.TempDir(), "gunter")
 	if err != nil {
@@ -291,7 +263,7 @@ func getTempDir() (string, error) {
 	return tempDir, nil
 }
 
-func applyTemplatePermissions(path string, template templateItem) error {
+func applyTemplatePermissions(path string, template os.FileInfo) error {
 	err := os.Chown(
 		path,
 		int(template.Sys().(*syscall.Stat_t).Uid),
@@ -314,4 +286,74 @@ func getConfig(path string) (zhash.Hash, error) {
 	}
 
 	return zhash.HashFromMap(configData), nil
+}
+
+func moveFiles(sourceDir, destDir, backupDir string, shouldBackup bool) error {
+	walk := func(path string, info os.FileInfo, err error) error {
+		relativePath := strings.TrimPrefix(path, sourceDir)
+		if relativePath == "/" {
+			return nil
+		}
+
+		destPath := filepath.Join(destDir, relativePath)
+
+		destExists := true
+		destFile, err := os.Stat(destPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				destExists = false
+			} else {
+				return err
+			}
+		}
+
+		backupPath := filepath.Join(backupDir, relativePath)
+
+		if info.IsDir() {
+			if shouldBackup && destExists {
+				err := os.MkdirAll(backupPath, destFile.Mode())
+				if err != nil {
+					return err
+				}
+			}
+
+			err := os.MkdirAll(destPath, info.Mode())
+			if err != nil {
+				return err
+			}
+		} else {
+			if shouldBackup && destExists {
+				err := copyFile(destPath, backupPath, destFile.Mode())
+				if err != nil {
+					return fmt.Errorf(
+						"can't copy file %s to %s: %s",
+						destPath, backupPath, err,
+					)
+				}
+			}
+
+			err := copyFile(path, destPath, info.Mode())
+			if err != nil {
+				return fmt.Errorf(
+					"can't copy file %s to %s: %s", path, destPath, err,
+				)
+			}
+		}
+
+		if shouldBackup && destExists {
+			err = applyTemplatePermissions(backupPath, info)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = applyTemplatePermissions(destPath, info)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return filepath.Walk(sourceDir, walk)
 }
