@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -69,6 +70,23 @@ func (walker CopyWalker) Walk(
 		}
 
 		if sourceInfo.IsDir() != destInfo.IsDir() {
+			if destInfo.IsDir() {
+				empty, err := isEmpty(destPath)
+				if err != nil {
+					return err
+				}
+
+				if !empty {
+					return fmt.Errorf(
+						"destination path %s is a directory, "+
+							"but source path %s (%s) is a file, destination "+
+							"directory can't be overwrited, because "+
+							"is not empty",
+						destPath, sourcePath, relativePath,
+					)
+				}
+			}
+
 			err = os.RemoveAll(destPath)
 			if err != nil {
 				return fmt.Errorf(
@@ -84,7 +102,6 @@ func (walker CopyWalker) Walk(
 	}
 
 	return nil
-
 }
 
 func (walker CopyWalker) copy(
@@ -132,4 +149,20 @@ func compareFileModes(src, dst os.FileInfo) bool {
 	return src.Mode() == dst.Mode() &&
 		srcStat.Uid == dstStat.Uid &&
 		srcStat.Gid == dstStat.Gid
+}
+
+func isEmpty(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+
+	defer f.Close()
+
+	_, err = f.Readdir(1)
+	if err == io.EOF {
+		return true, nil
+	}
+
+	return false, err
 }
