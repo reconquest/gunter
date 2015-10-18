@@ -12,25 +12,24 @@ import (
 	"syscall"
 )
 
-type CopyWalker struct {
-	modified  []string
-	sourceDir string
-	destDir   string
-	backup    bool
-	backupDir string
+type PlaceWalker struct {
+	placed       []string
+	sourceDir    string
+	destDir      string
+	shouldBackup bool
+	backupDir    string
 }
 
-func (walker CopyWalker) Walk(
+func (walker *PlaceWalker) Place(
 	sourcePath string, sourceInfo os.FileInfo, err error,
 ) error {
 	relativePath := strings.TrimPrefix(sourcePath, walker.sourceDir)
-	if relativePath == "/" {
+	if relativePath == "" {
 		return nil
 	}
 
 	var (
 		destPath   = filepath.Join(walker.destDir, relativePath)
-		backupPath = filepath.Join(walker.backupDir, relativePath)
 		destExists = true
 	)
 
@@ -44,26 +43,17 @@ func (walker CopyWalker) Walk(
 	}
 
 	if destExists {
-		if !sourceInfo.IsDir() && !destInfo.IsDir() {
-			sourceHash, err := getHash(sourcePath)
-			if err != nil {
-				return err
-			}
-
-			destHash, err := getHash(destPath)
-			if err != nil {
-				return err
-			}
-
-			if sourceHash == destHash {
-				// should not copy files, if they has same content (hash sum)
-				return nil
-			}
+		same, err := compare(sourcePath, destPath, sourceInfo, destInfo)
+		if err != nil {
+			return err
 		}
 
-		if walker.backup {
-			// copying file/directory from destination to backup
-			err = walker.copy(destPath, backupPath, destInfo)
+		if same {
+			return nil
+		}
+
+		if walker.shouldBackup {
+			err = walker.backup(destPath, destInfo, relativePath)
 			if err != nil {
 				return err
 			}
@@ -96,15 +86,17 @@ func (walker CopyWalker) Walk(
 		}
 	}
 
-	err = walker.copy(sourcePath, destPath, sourceInfo)
+	err = walker.place(sourcePath, destPath, sourceInfo)
 	if err != nil {
 		return err
 	}
 
+	walker.placed = append(walker.placed, "/"+relativePath)
+
 	return nil
 }
 
-func (walker CopyWalker) copy(
+func (walker *PlaceWalker) place(
 	sourcePath, destPath string, sourceInfo os.FileInfo,
 ) error {
 	if sourceInfo.IsDir() {
@@ -130,6 +122,39 @@ func (walker CopyWalker) copy(
 	return nil
 }
 
+func (walker *PlaceWalker) backup(
+	destPath string, destInfo os.FileInfo, relativePath string,
+) error {
+	dirs := strings.Split(relativePath, "/")
+
+	if len(dirs) > 1 {
+		if destInfo.IsDir() {
+			dirs = append([]string{}, dirs[:len(dirs)-1]...)
+		}
+
+		for index, _ := range dirs {
+			subdirs := strings.Join(dirs[:index+1], "/")
+
+			subDestPath := filepath.Join(walker.destDir, subdirs)
+			subDestInfo, err := os.Stat(subDestPath)
+			if err != nil {
+				return err
+			}
+
+			subBackupPath := filepath.Join(walker.backupDir, subdirs)
+
+			err = walker.place(subDestPath, subBackupPath, subDestInfo)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	backupPath := filepath.Join(walker.backupDir, relativePath)
+
+	return walker.place(destPath, backupPath, destInfo)
+}
+
 func getHash(path string) (string, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -149,6 +174,39 @@ func compareFileModes(src, dst os.FileInfo) bool {
 	return src.Mode() == dst.Mode() &&
 		srcStat.Uid == dstStat.Uid &&
 		srcStat.Gid == dstStat.Gid
+}
+
+func compare(
+	sourcePath, destPath string, sourceInfo, destInfo os.FileInfo,
+) (bool, error) {
+	if sourceInfo.IsDir() != destInfo.IsDir() {
+		return false, nil
+	}
+
+	sameModes := compareFileModes(sourceInfo, destInfo)
+	if !sameModes {
+		return false, nil
+	}
+
+	if sameModes && sourceInfo.IsDir() && destInfo.IsDir() {
+		return true, nil
+	}
+
+	sourceHash, err := getHash(sourcePath)
+	if err != nil {
+		return false, err
+	}
+
+	destHash, err := getHash(destPath)
+	if err != nil {
+		return false, err
+	}
+
+	if sourceHash == destHash {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func isEmpty(path string) (bool, error) {

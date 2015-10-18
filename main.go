@@ -304,21 +304,21 @@ func moveFiles(
 	logPath string, shouldWriteLogs bool,
 	backupDir string, shouldBackup bool,
 ) error {
-	walker := CopyWalker{
-		sourceDir: sourceDir,
-		destDir:   destDir,
-		backup:    shouldBackup,
-		backupDir: backupDir,
+	walker := PlaceWalker{
+		sourceDir:    sourceDir,
+		destDir:      destDir,
+		shouldBackup: shouldBackup,
+		backupDir:    backupDir,
 	}
 
-	err := filepath.Walk(sourceDir, walker.Walk)
+	err := filepath.Walk(sourceDir, walker.Place)
 	if err != nil {
 		return err
 	}
 
 	if shouldWriteLogs {
 		err = ioutil.WriteFile(
-			logPath, []byte(strings.Join(walker.modified, "\n")), 0644,
+			logPath, []byte(strings.Join(walker.placed, "\n")+"\n"), 0644,
 		)
 		if err != nil {
 			return fmt.Errorf("can't write log file %s: %s", logPath, err)
