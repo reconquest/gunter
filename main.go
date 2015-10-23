@@ -30,7 +30,7 @@ Of course, gunter will save file permissions including file owner uid/gid of
 the copied files and directories.
 
 Usage:
-    gunter [-t <tpl>] [-c <config>] [-d <dir>] [-b <dir>]
+    gunter [-t <tpl>] [-c <config>] [-d <dir>] [-b <dir>] [-l <path>]
     gunter [-t <tpl>] [-c <config>] -r
 
 Options:
@@ -42,18 +42,25 @@ Options:
                      and directories will be saved.  [default: /]
     -b <dir>     Set backup directory for storing files, which
                      will be overwriten.
+    -l <path>    Set file path, which will be used for logging list of
+                     created/overwrited files.
     -r           "Dry Run" mode. Gunter will create the temporary directory,
                      print location and use it as destination directory.
 `
 
 func main() {
-	args, _ := docopt.Parse(usage, nil, true, "1.3", false)
+	args, err := docopt.Parse(usage, nil, true, "1.3", false)
+	if err != nil {
+		panic(err)
+	}
 
 	var (
 		configFile   = args["-c"].(string)
 		templatesDir = args["-t"].(string)
 		destDir      = args["-d"].(string)
 		dryRun       = args["-r"].(bool)
+
+		logPath, shouldWriteLogs = args["-l"].(string)
 
 		backupDir, shouldBackup = args["-b"].(string)
 	)
@@ -68,15 +75,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if dryRun {
-		destDir, err = getTempDir()
-		if err != nil {
-			log.Fatal(err)
-		}
+	tempDir, err := getTempDir()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	err = compileTemplates(
-		templates, config.GetRoot(), destDir, backupDir, shouldBackup,
+		templates, config.GetRoot(), tempDir,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -85,8 +90,19 @@ func main() {
 	if dryRun {
 		fmt.Printf(
 			"configuration files are saved into temporary directory %s\n",
-			destDir,
+			tempDir,
 		)
+
+		os.Exit(0)
+	}
+
+	err = moveFiles(
+		tempDir, destDir,
+		logPath, shouldWriteLogs,
+		backupDir, shouldBackup,
+	)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -103,19 +119,10 @@ func compileTemplates(
 	templates []templateItem,
 	config map[string]interface{},
 	destDir string,
-	backupDir string,
-	shouldBackup bool,
 ) (err error) {
 	for _, template := range templates {
 		switch {
 		case template.Mode().IsRegular():
-			if shouldBackup {
-				err = backupFile(template, destDir, backupDir)
-				if err != nil {
-					return err
-				}
-			}
-
 			if strings.HasSuffix(template.RelativePath(), ".template") {
 				err = compileTemplateFile(template, destDir, config)
 			} else {
@@ -176,7 +183,7 @@ func compileTemplateDir(template templateItem, destDir string) error {
 		return err
 	}
 
-	return applyTemplatePermissions(dirPath, template)
+	return applyPermissions(dirPath, template)
 }
 
 func compileTemplateFile(
@@ -215,7 +222,7 @@ func compileTemplateFile(
 		return err
 	}
 
-	return applyTemplatePermissions(filePath, template)
+	return applyPermissions(filePath, template)
 }
 
 func copyTemplateFile(
@@ -228,7 +235,7 @@ func copyTemplateFile(
 		return err
 	}
 
-	return applyTemplatePermissions(dest, template)
+	return applyPermissions(dest, template)
 }
 
 func copyFile(sourcePath, destPath string, mode os.FileMode) error {
@@ -256,30 +263,6 @@ func copyFile(sourcePath, destPath string, mode os.FileMode) error {
 	return destFile.Close()
 }
 
-func backupFile(
-	template templateItem, sourceDir string, backupDir string,
-) error {
-	sourcePath := filepath.Join(
-		sourceDir, strings.TrimSuffix(template.RelativePath(), ".template"),
-	)
-
-	backupPath := filepath.Join(
-		backupDir, strings.TrimSuffix(template.RelativePath(), ".template"),
-	)
-
-	_, err := os.Stat(sourcePath)
-	if os.IsNotExist(err) {
-		return nil
-	}
-
-	err = os.MkdirAll(filepath.Dir(backupPath), 0600)
-	if err != nil {
-		return err
-	}
-
-	return copyFile(sourcePath, backupPath, template.Mode())
-}
-
 func getTempDir() (string, error) {
 	tempDir, err := ioutil.TempDir(os.TempDir(), "gunter")
 	if err != nil {
@@ -291,17 +274,17 @@ func getTempDir() (string, error) {
 	return tempDir, nil
 }
 
-func applyTemplatePermissions(path string, template templateItem) error {
+func applyPermissions(path string, fileinfo os.FileInfo) error {
 	err := os.Chown(
 		path,
-		int(template.Sys().(*syscall.Stat_t).Uid),
-		int(template.Sys().(*syscall.Stat_t).Gid),
+		int(fileinfo.Sys().(*syscall.Stat_t).Uid),
+		int(fileinfo.Sys().(*syscall.Stat_t).Gid),
 	)
 	if err != nil {
 		return err
 	}
 
-	err = os.Chmod(path, template.Mode())
+	err = os.Chmod(path, fileinfo.Mode())
 
 	return err
 }
@@ -314,4 +297,38 @@ func getConfig(path string) (zhash.Hash, error) {
 	}
 
 	return zhash.HashFromMap(configData), nil
+}
+
+func moveFiles(
+	sourceDir, destDir,
+	logPath string, shouldWriteLogs bool,
+	backupDir string, shouldBackup bool,
+) error {
+	walker := PlaceWalker{
+		sourceDir:    sourceDir,
+		destDir:      destDir,
+		shouldBackup: shouldBackup,
+		backupDir:    backupDir,
+	}
+
+	err := filepath.Walk(sourceDir, walker.Place)
+	if err != nil {
+		return err
+	}
+
+	if shouldWriteLogs {
+		err = ioutil.WriteFile(
+			logPath, []byte(strings.Join(walker.placed, "\n")+"\n"), 0644,
+		)
+		if err != nil {
+			return fmt.Errorf("can't write log file %s: %s", logPath, err)
+		}
+	}
+
+	err = os.RemoveAll(sourceDir)
+	if err != nil {
+		return fmt.Errorf("can't remove %s: %s", sourceDir, err)
+	}
+
+	return nil
 }

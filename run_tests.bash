@@ -28,14 +28,14 @@ chown $(id -u):daemon $TESTS/templates/.git.template/file_in_dot_git
 chmod +x $TESTS/templates/.git.template/file_in_dot_git
 
 # running gunter in dry run mode
-GUNTER_LOG=$(./gunter -c $TESTS/config -t $TESTS/templates -r 2>&1)
+GUNTER_OUTPUT=$(./gunter -c $TESTS/config -t $TESTS/templates -r 2>&1)
 if [ $? -ne 0 ]; then
     echo "gunter running failed"
-    echo "$GUNTER_LOG"
+    echo "$GUNTER_OUTPUT"
     exit 1
 fi
 
-GUNTER_TEMP_DIR=$(awk '{print $8}' <<< "$GUNTER_LOG")
+GUNTER_TEMP_DIR=$(awk '{print $8}' <<< "$GUNTER_OUTPUT")
 
 permissions() {
     DIR=$1
@@ -70,21 +70,39 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# check backup
+# check backup and logs
+
 DEST_DIR=$(mktemp -d --suffix=".gunter.dest")
-mkdir $DEST_DIR/dirbar
-echo -n 'backup me' > $DEST_DIR/dirbar/bar
-
 BACKUP_DIR=$(mktemp -d --suffix=".gunter.backup")
+LOG_FILE=$(mktemp --suffix=".gunter.log")
 
-GUNTER_LOG=$(
+mkdir $DEST_DIR/{dirbar,dirsimple}
+
+echo -n 'backup me' > $DEST_DIR/dirbar/bar
+echo -n 'gunter' > $DEST_DIR/dirsimple/filesimple
+
+GUNTER_OUTPUT=$(
     ./gunter \
         -c $TESTS/config -t $TESTS/templates \
-        -d $DEST_DIR -b $BACKUP_DIR 2>&1
+        -d $DEST_DIR -b $BACKUP_DIR -l $LOG_FILE 2>&1
 )
 if [ $? -ne 0 ]; then
     echo "gunter running failed"
-    echo "$GUNTER_LOG"
+    echo "$GUNTER_OUTPUT"
+    exit 1
+fi
+
+EXPECTED_LOG_FILE="
+/.git
+/.git/.gitignore
+/.git/file_in_dot_git
+/dirbar/bar
+/dirfoo
+"
+
+diff -u -B <(echo "$EXPECTED_LOG_FILE") $LOG_FILE
+if [ $? -ne 0 ]; then
+    echo "bad logs"
     exit 1
 fi
 
@@ -115,7 +133,7 @@ fi
 rm -rf $BACKUP_DIR $DEST_DIR
 mkdir -p $DEST_DIR
 
-GUNTER_LOG=$(
+GUNTER_OUTPUT=$(
     ./gunter \
         -c $TESTS/config -t $TESTS/broken_templates \
         -d $DEST_DIR -b $BACKUP_DIR 2>&1
@@ -125,7 +143,7 @@ if [ $? -eq 0 ]; then
     exit 1
 fi
 
-grep -q "UnknownConfigField" <<< "$GUNTER_LOG"
+grep -q "UnknownConfigField" <<< "$GUNTER_OUTPUT"
 if [ $? -ne 0 ]; then
     echo "gunter stderr doesn't contains message about UnknownConfigField"
     exit 1
