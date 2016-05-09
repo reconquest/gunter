@@ -13,7 +13,9 @@ import (
 	"github.com/zazab/zhash"
 )
 
-const usage = `Gunter 1.3,
+var (
+	version = `1.4`
+	usage   = `Gunter ` + version + `
 
 Gunter is a configuration system which is created with KISS (Keep It Short and
 Simple) principle in mind.
@@ -44,9 +46,10 @@ Options:
     -r           "Dry Run" mode. Gunter will create the temporary directory,
                      print location and use it as destination directory.
 `
+)
 
 func main() {
-	args, err := docopt.Parse(usage, nil, true, "1.3", false)
+	args, err := docopt.Parse(usage, nil, true, version, false)
 	if err != nil {
 		panic(err)
 	}
