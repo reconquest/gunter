@@ -27,6 +27,8 @@ chmod +x $TESTS/templates/dirbar/bar.template
 chown $(id -u):daemon $TESTS/templates/.git.template/file_in_dot_git
 chmod +x $TESTS/templates/.git.template/file_in_dot_git
 
+export TEST_ENV_KEY="TEST_ENV_VALUE"
+
 # running gunter in dry run mode
 GUNTER_OUTPUT=$(./gunter -c $TESTS/config -t $TESTS/templates -r 2>&1)
 if [ $? -ne 0 ]; then
@@ -51,7 +53,11 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-diff -u $TESTS/expected_bar_template $GUNTER_TEMP_DIR/dirbar/bar
+BAR_EXPECTED=$(
+    cat $TESTS/expected_bar_template | sed -r "s/%hostname%/$(hostname)/g"
+)
+
+diff -u <(echo "$BAR_EXPECTED") $GUNTER_TEMP_DIR/dirbar/bar
 if [ $? -ne 0 ]; then
     echo "template file compilation corrupted"
     exit 1

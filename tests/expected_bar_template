@@ -7,3 +7,5 @@ List:
     400
     500
 yet another config data
+env TEST_ENV_VALUE
+hostname %hostname%
