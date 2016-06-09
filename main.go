@@ -88,7 +88,8 @@ func main() {
 	}
 
 	if dryRun {
-		fmt.Printf(
+		fmt.Fprintf(
+			os.Stderr,
 			"configuration files are saved into temporary directory %s\n",
 			tempDir,
 		)
