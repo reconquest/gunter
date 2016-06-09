@@ -17,6 +17,7 @@ type PlaceWalker struct {
 	sourceDir    string
 	destDir      string
 	shouldBackup bool
+	dryRun       bool
 	backupDir    string
 }
 
@@ -77,18 +78,22 @@ func (walker *PlaceWalker) Place(
 				}
 			}
 
-			err = os.RemoveAll(destPath)
-			if err != nil {
-				return fmt.Errorf(
-					"can't delete %s: %s", destPath, err,
-				)
+			if !walker.dryRun {
+				err = os.RemoveAll(destPath)
+				if err != nil {
+					return fmt.Errorf(
+						"can't delete %s: %s", destPath, err,
+					)
+				}
 			}
 		}
 	}
 
-	err = walker.place(sourcePath, destPath, sourceInfo)
-	if err != nil {
-		return err
+	if !walker.dryRun {
+		err = walker.place(sourcePath, destPath, sourceInfo)
+		if err != nil {
+			return err
+		}
 	}
 
 	walker.placed = append(walker.placed, "/"+relativePath)
