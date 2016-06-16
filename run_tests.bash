@@ -10,6 +10,8 @@ fi
 
 TESTS=$(mktemp -d --suffix=".gunter.tests")
 
+DEST_DIR=$(mktemp -d --suffix=".gunter.dest")
+
 cp -r tests/* $TESTS
 
 # gunter should copy empty directories too, but git cannot stage empty
@@ -30,14 +32,17 @@ chmod +x $TESTS/templates/.git.template/file_in_dot_git
 export TEST_ENV_KEY="TEST_ENV_VALUE"
 
 # running gunter in dry run mode
-GUNTER_OUTPUT=$(./gunter -c $TESTS/config -t $TESTS/templates -r 2>&1)
+GUNTER_OUTPUT=$(
+    ./gunter -c $TESTS/config -t $TESTS/templates -r \
+        -l /dev/stdout -d $DEST_DIR 2>&1
+)
 if [ $? -ne 0 ]; then
     echo "gunter running failed"
     echo "$GUNTER_OUTPUT"
     exit 1
 fi
 
-GUNTER_TEMP_DIR=$(awk '{print $8}' <<< "$GUNTER_OUTPUT")
+GUNTER_TEMP_DIR=$(awk '{print $8}' <<< "$GUNTER_OUTPUT" | head -n1)
 
 permissions() {
     DIR=$1
@@ -50,6 +55,23 @@ PERMISSIONS_ACTUAL=$(permissions $GUNTER_TEMP_DIR)
 diff -u <(echo "$PERMISSIONS_EXPECTED") <(echo "$PERMISSIONS_ACTUAL")
 if [ $? -ne 0 ]; then
     echo "permissions and ownership copy error"
+    exit 1
+fi
+
+EXPECTED_STDOUT="
+/.git
+/.git/.gitignore
+/.git/file_in_dot_git
+/dirbar
+/dirbar/bar
+/dirfoo
+/dirsimple
+/dirsimple/filesimple
+"
+
+diff -uB <(echo "$GUNTER_OUTPUT" | tail -n+2) <(echo "$EXPECTED_STDOUT")
+if [ $? -ne 0 ]; then
+    echo "stdout in dry-run mode check error"
     exit 1
 fi
 
@@ -78,7 +100,6 @@ fi
 
 # check backup and logs
 
-DEST_DIR=$(mktemp -d --suffix=".gunter.dest")
 BACKUP_DIR=$(mktemp -d --suffix=".gunter.backup")
 LOG_FILE=$(mktemp --suffix=".gunter.log")
 

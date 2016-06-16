@@ -30,7 +30,7 @@ the copied files and directories.
 
 Usage:
     gunter [-t <tpl>] [-c <config>] [-d <dir>] [-b <dir>] [-l <path>]
-    gunter [-t <tpl>] [-c <config>] -r
+    gunter [-t <tpl>] [-c <config>] [-l <path>] [-d <dir>] -r
 
 Options:
     -t <tpl>     Set source templates directory.
@@ -88,18 +88,18 @@ func main() {
 	}
 
 	if dryRun {
-		fmt.Printf(
+		fmt.Fprintf(
+			os.Stderr,
 			"configuration files are saved into temporary directory %s\n",
 			tempDir,
 		)
-
-		os.Exit(0)
 	}
 
 	err = moveFiles(
 		tempDir, destDir,
 		logPath, shouldWriteLogs,
 		backupDir, shouldBackup,
+		dryRun,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -129,11 +129,13 @@ func moveFiles(
 	sourceDir, destDir,
 	logPath string, shouldWriteLogs bool,
 	backupDir string, shouldBackup bool,
+	dryRun bool,
 ) error {
 	walker := PlaceWalker{
 		sourceDir:    sourceDir,
 		destDir:      destDir,
 		shouldBackup: shouldBackup,
+		dryRun:       dryRun,
 		backupDir:    backupDir,
 	}
 
@@ -151,9 +153,11 @@ func moveFiles(
 		}
 	}
 
-	err = os.RemoveAll(sourceDir)
-	if err != nil {
-		return fmt.Errorf("can't remove %s: %s", sourceDir, err)
+	if !dryRun {
+		err = os.RemoveAll(sourceDir)
+		if err != nil {
+			return fmt.Errorf("can't remove %s: %s", sourceDir, err)
+		}
 	}
 
 	return nil

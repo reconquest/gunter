@@ -53,6 +53,9 @@ go get github.com/reconquest/gunter
 
     Very useful for debugging time.
 
+- `-l <log>` - Write overwritten files into specified log. Works in dry-run
+   mode too.
+
 ### Templates
 
 All template files should be written in *Go template engine* syntax and have
