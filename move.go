@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/seletskiy/hierr"
 )
 
 type PlaceWalker struct {
@@ -37,7 +39,9 @@ func (walker *PlaceWalker) Place(
 	destInfo, err := os.Stat(destPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return err
+			return hierr.Errorf(
+				err, "can't stat %s", destPath,
+			)
 		}
 
 		destExists = false
@@ -46,7 +50,9 @@ func (walker *PlaceWalker) Place(
 	if destExists {
 		same, err := compare(sourcePath, destPath, sourceInfo, destInfo)
 		if err != nil {
-			return err
+			return hierr.Errorf(
+				err, "can't compare %s and %s", sourcePath, destPath,
+			)
 		}
 
 		if same {
@@ -56,7 +62,9 @@ func (walker *PlaceWalker) Place(
 		if walker.shouldBackup {
 			err = walker.backup(destPath, destInfo, relativePath)
 			if err != nil {
-				return err
+				return hierr.Errorf(
+					err, "can't backup %s", destPath,
+				)
 			}
 		}
 
@@ -81,8 +89,8 @@ func (walker *PlaceWalker) Place(
 			if !walker.dryRun {
 				err = os.RemoveAll(destPath)
 				if err != nil {
-					return fmt.Errorf(
-						"can't delete %s: %s", destPath, err,
+					return hierr.Errorf(
+						err, "can't remove %s", destPath,
 					)
 				}
 			}
@@ -92,7 +100,9 @@ func (walker *PlaceWalker) Place(
 	if !walker.dryRun {
 		err = walker.place(sourcePath, destPath, sourceInfo)
 		if err != nil {
-			return err
+			return hierr.Errorf(
+				err, "can't place file %s as %s", sourcePath, destPath,
+			)
 		}
 	}
 
@@ -107,21 +117,24 @@ func (walker *PlaceWalker) place(
 	if sourceInfo.IsDir() {
 		err := os.MkdirAll(destPath, sourceInfo.Mode())
 		if err != nil {
-			return err
+			return hierr.Errorf(
+				err, "can't create directory %s", destPath,
+			)
 		}
 	} else {
 		err := copyFile(sourcePath, destPath, sourceInfo.Mode())
 		if err != nil {
-			return fmt.Errorf(
-				"can't copy file %s to %s: %s",
-				sourcePath, destPath, err,
+			return hierr.Errorf(
+				err, "can't copy file %s to %s", sourcePath, destPath,
 			)
 		}
 	}
 
 	err := applyPermissions(destPath, sourceInfo)
 	if err != nil {
-		return err
+		return hierr.Errorf(
+			err, "can't apply file permissions to %s", destPath,
+		)
 	}
 
 	return nil
@@ -143,27 +156,41 @@ func (walker *PlaceWalker) backup(
 			subDestPath := filepath.Join(walker.destDir, subdirs)
 			subDestInfo, err := os.Stat(subDestPath)
 			if err != nil {
-				return err
+				return hierr.Errorf(
+					err, "can't stat %s", subDestPath,
+				)
 			}
 
 			subBackupPath := filepath.Join(walker.backupDir, subdirs)
 
 			err = walker.place(subDestPath, subBackupPath, subDestInfo)
 			if err != nil {
-				return err
+				return hierr.Errorf(
+					err,
+					"can't place file %s as %s", subDestPath, subBackupPath,
+				)
 			}
 		}
 	}
 
 	backupPath := filepath.Join(walker.backupDir, relativePath)
 
-	return walker.place(destPath, backupPath, destInfo)
+	err := walker.place(destPath, backupPath, destInfo)
+	if err != nil {
+		return hierr.Errorf(
+			err, "can't place file %s as %s", destPath, backupPath,
+		)
+	}
+
+	return nil
 }
 
 func getHash(path string) (string, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", err
+		return "", hierr.Errorf(
+			err, "can't read file",
+		)
 	}
 
 	hasher := md5.New()
@@ -199,12 +226,16 @@ func compare(
 
 	sourceHash, err := getHash(sourcePath)
 	if err != nil {
-		return false, err
+		return false, hierr.Errorf(
+			err, "can't get hash sum of %s", sourcePath,
+		)
 	}
 
 	destHash, err := getHash(destPath)
 	if err != nil {
-		return false, err
+		return false, hierr.Errorf(
+			err, "can't get hash sum of %s", destPath,
+		)
 	}
 
 	if sourceHash == destHash {
@@ -217,7 +248,9 @@ func compare(
 func isEmpty(path string) (bool, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return false, err
+		return false, hierr.Errorf(
+			err, "can't open %s", path,
+		)
 	}
 
 	defer f.Close()
@@ -227,5 +260,11 @@ func isEmpty(path string) (bool, error) {
 		return true, nil
 	}
 
-	return false, err
+	if err != nil {
+		return false, hierr.Errorf(
+			err, "can't read dir at %s", path,
+		)
+	}
+
+	return false, nil
 }

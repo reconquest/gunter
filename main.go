@@ -10,17 +10,18 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/docopt/docopt-go"
+	"github.com/seletskiy/hierr"
 	"github.com/zazab/zhash"
 )
 
 var (
 	version = `1.4`
-	usage   = `Gunter ` + version + `
+	usage   = `gunter ` + version + `
 
-Gunter is a configuration system which is created with KISS (Keep It Short and
+gunter is a configuration system which is created with KISS (Keep It Short and
 Simple) principle in mind.
 
-Gunter takes a files and directories from the templates directory, takes a
+gunter takes a files and directories from the templates directory, takes a
 configuration data from the configuration file written in TOML language, and
 then create directories with the same names, renders template files via Go
 template engine, and puts result to destination directory.
@@ -29,22 +30,24 @@ Of course, gunter will save file permissions including file owner uid/gid of
 the copied files and directories.
 
 Usage:
-    gunter [-t <tpl>] [-c <config>] [-d <dir>] [-b <dir>] [-l <path>]
-    gunter [-t <tpl>] [-c <config>] [-l <path>] [-d <dir>] -r
+    gunter [-t <dir>] [-c <config>] [-d <dir>] [-b <dir>] [-l <path>]
+    gunter [-t <dir>] [-c <config>] [-l <path>] [-d <dir>] -r
 
 Options:
-    -t <tpl>     Set source templates directory.
-                     [default: /var/gunter/templates/]
-    -c <config>  Set source file with configuration data.
-                     [default: /etc/gunter/config]
-    -d <dir>     Set destination directory, where rendered template files
-                     and directories will be saved.  [default: /]
-    -b <dir>     Set backup directory for storing files, which
-                     will be overwriten.
-    -l <path>    Set file path, which will be used for logging list of
-                     created/overwrited files.
-    -r           "Dry Run" mode. Gunter will create the temporary directory,
-                     print location and use it as destination directory.
+  -t --templates <path>  Set source templates directory.
+                          [default: /var/gunter/templates/]
+  -c --config <config>   Set source file with configuration data.
+                          [default: /etc/gunter/config]
+  -d --target <dir>      Set destination directory, where rendered template
+                          files and directories will be saved.
+                          [default: /]
+  -b --backup <dir>      Set backup directory for storing files, which
+                          will be overwriten.
+  -l --log <path>        Set file path, which will be used for logging list
+                          of created/overwrited files.
+  -r --dry-run           "Dry Run" mode. gunter will create the temporary
+                          directory, print location and use it as destination
+                          directory.
 `
 )
 
@@ -55,14 +58,12 @@ func main() {
 	}
 
 	var (
-		configFile   = args["-c"].(string)
-		templatesDir = args["-t"].(string)
-		destDir      = args["-d"].(string)
-		dryRun       = args["-r"].(bool)
-
-		logPath, shouldWriteLogs = args["-l"].(string)
-
-		backupDir, shouldBackup = args["-b"].(string)
+		configFile               = args["--config"].(string)
+		templatesDir             = args["--templates"].(string)
+		destDir                  = args["--target"].(string)
+		dryRun                   = args["--dry-run"].(bool)
+		logPath, shouldWriteLogs = args["--log"].(string)
+		backupDir, shouldBackup  = args["--backup"].(string)
 	)
 
 	config, err := getConfig(configFile)
@@ -102,7 +103,8 @@ func main() {
 		dryRun,
 	)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
 	}
 }
 
@@ -149,14 +151,18 @@ func moveFiles(
 			logPath, []byte(strings.Join(walker.placed, "\n")+"\n"), 0644,
 		)
 		if err != nil {
-			return fmt.Errorf("can't write log file %s: %s", logPath, err)
+			return hierr.Errorf(
+				err, "can't write log",
+			)
 		}
 	}
 
 	if !dryRun {
 		err = os.RemoveAll(sourceDir)
 		if err != nil {
-			return fmt.Errorf("can't remove %s: %s", sourceDir, err)
+			return hierr.Errorf(
+				err, "can't remove %s", sourceDir,
+			)
 		}
 	}
 
