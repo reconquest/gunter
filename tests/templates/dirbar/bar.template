@@ -1,8 +1,0 @@
-config data
-{{ .Foo.StringData }}
-List: {{ range $element := .Bar.ArrayData }}
-    {{ $element }}
-{{ - end }}
-yet another config data
-env {{ env "TEST_ENV_KEY" }}
-hostname {{ hostname }}

@@ -1,7 +1,0 @@
-UnexpectedData = "oh my glob"
-
-[Foo]
-StringData = "foo string data special & chars # + = $"
-
-[Bar]
-ArrayData = [ 100, 200, 300, 400, 500 ]
