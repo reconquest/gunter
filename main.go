@@ -30,14 +30,17 @@ Of course, gunter will save file permissions including file owner uid/gid of
 the copied files and directories.
 
 Usage:
-    gunter [-t <dir>] [-c <config>] [-d <dir>] [-b <dir>] [-l <path>]
-    gunter [-t <dir>] [-c <config>] [-l <path>] [-d <dir>] -r
+    gunter [-t <dir>] [-c <config>] [-d <dir>] [-l <path>] [-n] [-b <dir>]
+    gunter [-t <dir>] [-c <config>] [-d <dir>] [-l <path>] [-n] -r
 
 Options:
   -t --templates <path>  Set source templates directory.
                           [default: /var/gunter/templates/]
   -c --config <config>   Set source file with configuration data.
                           [default: /etc/gunter/config]
+  -n --non-strict        Do not abort on missing values in the templates.
+                         In-place value replacements will be rendered as
+                          '<no value>', range values will be rendered empty.
   -d --target <dir>      Set destination directory, where rendered template
                           files and directories will be saved.
                           [default: /]
@@ -64,6 +67,7 @@ func main() {
 		dryRun                   = args["--dry-run"].(bool)
 		logPath, shouldWriteLogs = args["--log"].(string)
 		backupDir, shouldBackup  = args["--backup"].(string)
+		nonStrict                = CompileMode(args["--non-strict"].(bool))
 	)
 
 	config, err := getConfig(configFile)
@@ -82,7 +86,7 @@ func main() {
 	}
 
 	err = compileTemplates(
-		templates, config.GetRoot(), tempDir,
+		templates, config.GetRoot(), tempDir, nonStrict,
 	)
 	if err != nil {
 		log.Fatal(err)

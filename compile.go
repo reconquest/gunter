@@ -14,16 +14,24 @@ import (
 	libtemplate "text/template"
 )
 
+type CompileMode bool
+
+const (
+	NonStrict = CompileMode(true)
+	Strict    = CompileMode(false)
+)
+
 func compileTemplates(
 	templates []templateItem,
 	config map[string]interface{},
 	destDir string,
+	mode CompileMode,
 ) (err error) {
 	for _, template := range templates {
 		switch {
 		case template.Mode().IsRegular():
 			if strings.HasSuffix(template.RelativePath(), ".template") {
-				err = compileTemplateFile(template, destDir, config)
+				err = compileTemplateFile(template, destDir, config, mode)
 				if err != nil {
 					return hierr.Errorf(
 						err,
@@ -113,6 +121,7 @@ func compileTemplateDir(template templateItem, destDir string) error {
 
 func compileTemplateFile(
 	template templateItem, destDir string, config map[string]interface{},
+	mode CompileMode,
 ) error {
 	templateContents, err := ioutil.ReadFile(template.FullPath())
 	if err != nil {
@@ -123,8 +132,13 @@ func compileTemplateFile(
 
 	tpl := libtemplate.New(template.RelativePath())
 
-	// strict mode
-	tpl.Option("missingkey=error")
+	switch mode {
+	case Strict:
+		tpl.Option("missingkey=error")
+
+	case NonStrict:
+		tpl.Option("missingkey=invalid")
+	}
 
 	tpl.Funcs(getTemplateFuncs())
 
