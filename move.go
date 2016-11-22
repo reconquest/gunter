@@ -11,7 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/seletskiy/hierr"
+	"github.com/reconquest/hierr-go"
 )
 
 type PlaceWalker struct {

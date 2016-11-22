@@ -9,7 +9,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/seletskiy/hierr"
+	"github.com/reconquest/hierr-go"
 
 	libtemplate "text/template"
 )
