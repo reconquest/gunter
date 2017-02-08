@@ -16,6 +16,7 @@ import (
 
 func compileTemplates(
 	templates []templateItem,
+	templateFuncs libtemplate.FuncMap,
 	config map[string]interface{},
 	destDir string,
 ) (err error) {
@@ -23,7 +24,7 @@ func compileTemplates(
 		switch {
 		case template.Mode().IsRegular():
 			if strings.HasSuffix(template.RelativePath(), ".template") {
-				err = compileTemplateFile(template, destDir, config)
+				err = compileTemplateFile(template, templateFuncs, destDir, config)
 				if err != nil {
 					return hierr.Errorf(
 						err,
@@ -112,7 +113,8 @@ func compileTemplateDir(template templateItem, destDir string) error {
 }
 
 func compileTemplateFile(
-	template templateItem, destDir string, config map[string]interface{},
+	template templateItem, templateFuncs libtemplate.FuncMap,
+	destDir string, config map[string]interface{},
 ) error {
 	templateContents, err := ioutil.ReadFile(template.FullPath())
 	if err != nil {
@@ -126,7 +128,7 @@ func compileTemplateFile(
 	// strict mode
 	tpl.Option("missingkey=error")
 
-	tpl.Funcs(getTemplateFuncs())
+	tpl.Funcs(templateFuncs)
 
 	tpl, err = tpl.Parse(
 		tplStripWhitespaces(string(templateContents)),

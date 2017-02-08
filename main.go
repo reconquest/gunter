@@ -29,9 +29,15 @@ template engine, and puts result to destination directory.
 Of course, gunter will save file permissions including file owner uid/gid of
 the copied files and directories.
 
+Since 2.0 gunter supports plugins, they will be automatically looked in
+specified directory, loaded and their exported functions will be passed as
+template functions.
+
 Usage:
-    gunter [-t <dir>] [-c <config>] [-d <dir>] [-b <dir>] [-l <path>]
-    gunter [-t <dir>] [-c <config>] [-l <path>] [-d <dir>] -r
+    gunter [-t <dir>] [-c <config>] [-p <dir>] [-d <dir>] [-b <dir>] [-l <path>]
+    gunter [-t <dir>] [-c <config>] [-p <dir>] [-l <path>] [-d <dir>] -r
+	gunter -h | --help
+	gunter --version
 
 Options:
   -t --templates <path>  Set source templates directory.
@@ -41,6 +47,8 @@ Options:
   -d --target <dir>      Set destination directory, where rendered template
                           files and directories will be saved.
                           [default: /]
+  -p --plugins <dir>     Set directory with plugins.
+                          [default: /usr/lib/gunter/plugins/].
   -b --backup <dir>      Set backup directory for storing files, which
                           will be overwriten.
   -l --log <path>        Set file path, which will be used for logging list
@@ -61,6 +69,7 @@ func main() {
 		configFile               = args["--config"].(string)
 		templatesDir             = args["--templates"].(string)
 		destDir                  = args["--target"].(string)
+		pluginsDir               = args["--plugins"].(string)
 		dryRun                   = args["--dry-run"].(bool)
 		logPath, shouldWriteLogs = args["--log"].(string)
 		backupDir, shouldBackup  = args["--backup"].(string)
@@ -81,8 +90,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	templateFuncs, err := getTemplateFuncs(pluginsDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	err = compileTemplates(
-		templates, config.GetRoot(), tempDir,
+		templates, templateFuncs, config.GetRoot(), tempDir,
 	)
 	if err != nil {
 		log.Fatal(err)

@@ -56,6 +56,9 @@ go get github.com/reconquest/gunter
 - `-l <log>` - Write overwritten files into specified log. Works in dry-run
    mode too.
 
+- `-p <dir>` - Set directory with plugins (default: `/usr/lib/gunter/plugins/`)
+
+
 ### Templates
 
 All template files should be written in *Go template engine* syntax and have
@@ -194,3 +197,16 @@ gunter -t /var/templates/ -c /etc/superconf
 After that, all configuration files are directory will be copied to
 destination directory and services `foo` and `bar` can start using compiled
 configuration data.
+
+### Plugins
+
+Since 2.0 (and Go 1.8) gunter supports plugins, they should be located in
+`/usr/lib/gunter/plugins` directory (it can be changed using `-p` flag),
+see documentation for Go plugins: https://beta.golang.org/pkg/plugin/)
+
+Plugins should have exported variable `Exports` with type `template.FuncMap`,
+that map will be merged against default template functions map and will be
+passed to templates compiler and your function will be accessible in templates.
+
+See testcase as example:
+https://github.com/reconquest/guntalina/blob/master/tests/testcases/load-plugins.test.sh
