@@ -1,0 +1,3 @@
+[submodule "deb-from-pkgbuild"]
+	path = deb-from-pkgbuild
+	url = ssh://git@git.rn/devops/deb-from-pkgbuild.git

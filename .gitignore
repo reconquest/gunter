@@ -1,0 +1,6 @@
+/*.tar.xz
+/*.deb
+/pkg
+/src
+/gunter
+.last-testcase
